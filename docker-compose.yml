@@ -1,0 +1,35 @@
+services:
+  backend:
+    # Runs the FastAPI service responsible for data, ML, simulation, and logs.
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: praids-backend
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - praids-artifacts:/app/artifacts
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  frontend:
+    # Runs the Streamlit dashboard and talks to the backend over the Docker network.
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: praids-frontend
+    environment:
+      PRAIDS_API_URL: http://backend:8000
+    ports:
+      - "${FRONTEND_PORT:-8501}:8501"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  # Keeps model/data/journal artifacts across container rebuilds.
+  praids-artifacts:
